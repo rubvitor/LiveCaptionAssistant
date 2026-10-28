@@ -1,0 +1,396 @@
+<Window x:Class="LiveCaptionAssistant.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:LiveCaptionAssistant.App.ViewModels"
+        xmlns:behaviors="clr-namespace:LiveCaptionAssistant.App.Behaviors"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel, IsDesignTimeCreatable=False}"
+        Title="Live Caption Assistant"
+        Width="1120" Height="700" MinWidth="780" MinHeight="460"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="CanResize" Topmost="True" ShowInTaskbar="True"
+        WindowStartupLocation="CenterScreen"
+        Opacity="{Binding OverlayOpacity}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource UiFont}">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="46" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource OverlayBackgroundBrush}" BorderBrush="{StaticResource OverlayBorderBrush}" BorderThickness="1" CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="46" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Title bar (draggable through WindowChrome) -->
+            <Grid Grid.Row="0" Margin="14,0,8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource IdleBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource LiveBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="Live Caption Assistant" FontWeight="SemiBold" FontSize="14" Margin="10,0,18,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" MinWidth="100" VerticalAlignment="Center"
+                        Command="{Binding ToggleCaptureCommand}" WindowChrome.IsHitTestVisibleInChrome="True"
+                        ToolTip="Start or stop captioning the computer's audio">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontFamily="{StaticResource IconFont}" Text="{Binding CaptureButtonIcon}" FontSize="12" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding CaptureButtonText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <ComboBox Grid.Column="2" Width="200" Margin="12,0,0,0" VerticalAlignment="Center"
+                          ItemsSource="{Binding LanguageModes}" SelectedItem="{Binding SelectedLanguageMode}" DisplayMemberPath="Label"
+                          WindowChrome.IsHitTestVisibleInChrome="True" ToolTip="Language spoken in the meeting" />
+
+                <Border Grid.Column="3" Style="{StaticResource BadgeStyle}" Margin="10,0,0,0" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LanguageStatusText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                </Border>
+
+                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource IconButtonStyle}" Content="&#xE713;" ToolTip="Settings"
+                            Command="{Binding OpenSettingsCommand}" WindowChrome.IsHitTestVisibleInChrome="True" />
+                    <Button Style="{StaticResource IconButtonStyle}" Content="&#xE921;" ToolTip="Minimize"
+                            Click="OnMinimizeClick" WindowChrome.IsHitTestVisibleInChrome="True" />
+                    <Button Style="{StaticResource IconButtonStyle}" Content="&#xE8BB;" ToolTip="Close"
+                            Click="OnCloseClick" WindowChrome.IsHitTestVisibleInChrome="True" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Live caption -->
+            <Border Grid.Row="1" Margin="12,0,12,10" Padding="16,12" CornerRadius="10" Background="{StaticResource CaptionBrush}" MinHeight="74">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,5,14,0" VerticalAlignment="Top" MinWidth="34">
+                        <Border Style="{StaticResource BadgeStyle}" HorizontalAlignment="Left"
+                                Visibility="{Binding HasCaptionLanguage, Converter={StaticResource BooleanToVisibility}}">
+                            <TextBlock Text="{Binding CaptionLanguage}" FontSize="11" FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="● live" FontSize="11" Foreground="{StaticResource LiveBrush}" Margin="0,6,0,0"
+                                   Visibility="{Binding IsThemSpeaking, Converter={StaticResource BooleanToVisibility}}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{Binding CaptionDisplayText}" TextWrapping="Wrap" MaxHeight="96"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="22" />
+                                <Setter Property="LineHeight" Value="30" />
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CaptionIsPartial}" Value="True">
+                                        <Setter Property="Opacity" Value="0.82" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsCaptionPlaceholder}" Value="True">
+                                        <Setter Property="FontSize" Value="15" />
+                                        <Setter Property="LineHeight" Value="22" />
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Margin="12,0,12,8" Padding="12,8" CornerRadius="8" Background="{StaticResource PanelBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ProgressBar Height="8" Minimum="0" Maximum="1" Value="{Binding SystemAudioLevel, Mode=OneWay}"
+                                 VerticalAlignment="Center" ToolTip="System audio level — this moves when sound reaches the transcription engine" />
+                    <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding AudioStatusText}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding AudioStatusText}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAudioSilent}" Value="True">
+                                            <Setter Property="Foreground" Value="{StaticResource QuestionBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding AudioSourceText}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding AudioSourceText}" />
+                    </StackPanel>
+                    <CheckBox Grid.Column="2" Content="My microphone" IsChecked="{Binding CaptureMicrophone}"
+                              IsEnabled="{Binding CanChangeCaptureDevices}" VerticalAlignment="Center" Margin="0,0,12,0"
+                              ToolTip="Also transcribe your own voice as Me. Change this before Start; use headphones to avoid speaker echo." />
+                    <Button Grid.Column="3" Content="Audio settings" Style="{StaticResource SmallButtonStyle}"
+                            Command="{Binding OpenSettingsCommand}" VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Transcript and AI assistant -->
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*" MinWidth="300" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="2*" MinWidth="320" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Transcript -->
+                <Border Grid.Column="0" Margin="12,0,0,0" Background="{StaticResource PanelBrush}" CornerRadius="10">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top" Margin="14,8,8,4">
+                            <TextBlock Text="TRANSCRIPT" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Style="{StaticResource IconButtonStyle}" Content="&#xE8C8;" ToolTip="Copy transcript" Command="{Binding CopyTranscriptCommand}" />
+                                <Button Style="{StaticResource IconButtonStyle}" Content="&#xE74D;" ToolTip="Clear transcript" Command="{Binding ClearTranscriptCommand}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid>
+                            <TextBlock Margin="18,8,18,0" Style="{StaticResource SecondaryTextStyle}" FontSize="13"
+                                       Text="Everything said in the meeting appears here. Questions from the other participants are highlighted and answered in the AI panel."
+                                       Visibility="{Binding ShowTranscriptPlaceholder, Converter={StaticResource BooleanToVisibility}}" />
+                            <ItemsControl ItemsSource="{Binding Transcript}" Margin="6,0,4,8"
+                                          VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel"
+                                          VirtualizingPanel.VirtualizationMode="Recycling">
+                                <ItemsControl.Template>
+                                    <ControlTemplate TargetType="ItemsControl">
+                                        <ScrollViewer CanContentScroll="True" Focusable="False" HorizontalScrollBarVisibility="Disabled"
+                                                      VerticalScrollBarVisibility="Auto" behaviors:AutoScroll.IsEnabled="True">
+                                            <ItemsPresenter />
+                                        </ScrollViewer>
+                                    </ControlTemplate>
+                                </ItemsControl.Template>
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:TranscriptItemViewModel}">
+                                        <Border x:Name="Row" Margin="0,1" Padding="8,6" CornerRadius="8" BorderThickness="1"
+                                                BorderBrush="Transparent" Background="Transparent">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding TimeLabel}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                           Margin="0,3,8,0" VerticalAlignment="Top" />
+                                                <TextBlock x:Name="SpeakerText" Grid.Column="1" Text="{Binding SpeakerLabel}" Width="40"
+                                                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource ThemBrush}"
+                                                           Margin="0,2,6,0" VerticalAlignment="Top" />
+                                                <Border Grid.Column="2" Style="{StaticResource BadgeStyle}" Margin="0,2,8,0" VerticalAlignment="Top">
+                                                    <TextBlock Text="{Binding LanguageLabel}" FontSize="10" />
+                                                </Border>
+                                                <TextBlock x:Name="BodyText" Grid.Column="3" Text="{Binding Text}" TextWrapping="Wrap"
+                                                           FontSize="14" LineHeight="20" />
+                                                <Button x:Name="AskButton" Grid.Column="4" Style="{StaticResource SmallButtonStyle}" Content="Ask AI"
+                                                        Margin="8,0,0,0" VerticalAlignment="Top" Visibility="Hidden"
+                                                        Command="{Binding DataContext.AskAboutSegmentCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsMe}" Value="True">
+                                                <Setter TargetName="SpeakerText" Property="Foreground" Value="{StaticResource MeBrush}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsFinal}" Value="False">
+                                                <Setter TargetName="BodyText" Property="Opacity" Value="0.7" />
+                                                <Setter TargetName="BodyText" Property="FontStyle" Value="Italic" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsQuestion}" Value="True">
+                                                <Setter TargetName="Row" Property="Background" Value="{StaticResource QuestionBackgroundBrush}" />
+                                                <Setter TargetName="Row" Property="BorderBrush" Value="{StaticResource QuestionBrush}" />
+                                            </DataTrigger>
+                                            <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="AskButton" Property="Visibility" Value="Visible" />
+                                            </Trigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+
+                <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" Background="Transparent" ResizeBehavior="PreviousAndNext" />
+
+                <!-- AI assistant -->
+                <Border Grid.Column="2" Margin="0,0,12,0" Background="{StaticResource PanelBrush}" CornerRadius="10">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Top" Margin="14,8,10,4">
+                            <Grid>
+                                <TextBlock Text="AI ASSISTANT · CHATGPT" Style="{StaticResource SectionHeaderStyle}" VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding AccountDisplay}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center" Margin="0,0,4,0" TextTrimming="CharacterEllipsis" MaxWidth="180" />
+                                    <Button Style="{StaticResource IconButtonStyle}" Content="&#xE74D;" ToolTip="Clear answers" Command="{Binding ClearAnswersCommand}" />
+                                </StackPanel>
+                            </Grid>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox ItemsSource="{Binding Models}" SelectedItem="{Binding SelectedModel}" DisplayMemberPath="DisplayName"
+                                          ToolTip="ChatGPT model used for answers" />
+                                <Button Grid.Column="1" Style="{StaticResource IconButtonStyle}" Content="&#xE72C;" Margin="4,0"
+                                        ToolTip="Reload the models available to your ChatGPT account" Command="{Binding RefreshModelsCommand}" />
+                                <ComboBox Grid.Column="2" ItemsSource="{Binding Efforts}" SelectedItem="{Binding SelectedEffort}" DisplayMemberPath="Label"
+                                          ToolTip="Reasoning effort: higher is smarter but slower" />
+                            </Grid>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Speed" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox Width="110" ItemsSource="{Binding ResponseSpeeds}" SelectedItem="{Binding SelectedResponseSpeed}" DisplayMemberPath="Label"
+                                              ToolTip="Standard or Fast processing. Fast uses more of your plan allowance; availability depends on your model and account." />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Responder" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding AskAboutLatestCommand}"
+                                        ToolTip="Responder à última fala transcrita, mesmo se a pergunta não foi identificada (Ctrl+Shift+Space)" />
+                            </Grid>
+                            <TextBlock Margin="2,6,0,0" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       Visibility="{Binding IsPlanUsageEnabled, Converter={StaticResource BooleanToVisibility}}">
+                                <Run Text="Using ChatGPT plan · " />
+                                <Hyperlink Command="{Binding OpenUsageCommand}">Manage usage</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="12,6,12,8"
+                                Visibility="{Binding ShowSignInCard, Converter={StaticResource BooleanToVisibility}}">
+                            <StackPanel>
+                                <TextBlock Text="Use your ChatGPT plan" FontSize="15" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding SignInDescription}" Style="{StaticResource SecondaryTextStyle}" FontSize="13" Margin="0,6,0,12" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource ChatGptButtonStyle}" Content="{Binding SignInButtonText}" Command="{Binding SignInCommand}" />
+                                    <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12"
+                                               Visibility="{Binding IsSigningIn, Converter={StaticResource BooleanToVisibility}}">
+                                        <Run Text="Waiting for the browser… " Foreground="{StaticResource TextSecondaryBrush}" />
+                                        <Hyperlink Command="{Binding CancelSignInCommand}">Cancel</Hyperlink>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid DockPanel.Dock="Bottom" Margin="12,6,12,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding QuestionInput, UpdateSourceTrigger=PropertyChanged}" MinHeight="34"
+                                     VerticalContentAlignment="Center" ToolTip="Type a question and press Enter">
+                                <TextBox.InputBindings>
+                                    <KeyBinding Key="Enter" Command="{Binding AskCommand}" />
+                                </TextBox.InputBindings>
+                            </TextBox>
+                            <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Content="Ask" Margin="8,0,0,0" Command="{Binding AskCommand}" />
+                        </Grid>
+
+                        <Grid>
+                            <TextBlock Margin="18,4,18,0" Style="{StaticResource SecondaryTextStyle}" FontSize="13"
+                                       Text="Detected questions are answered here automatically. Click Responder (or Ctrl+Shift+Space) to answer the latest speech even if a question was not detected, or type a question below."
+                                       Visibility="{Binding ShowAnswersPlaceholder, Converter={StaticResource BooleanToVisibility}}" />
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,2,0">
+                                <ItemsControl ItemsSource="{Binding Answers}" Margin="12,2,10,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:AnswerItemViewModel}">
+                                            <Border Style="{StaticResource CardStyle}">
+                                                <StackPanel>
+                                                    <DockPanel>
+                                                        <Border DockPanel.Dock="Right" Style="{StaticResource BadgeStyle}" Margin="8,0,0,0" VerticalAlignment="Top">
+                                                            <TextBlock Text="{Binding OriginLabel}" FontSize="10" Foreground="{StaticResource TextSecondaryBrush}" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding Question}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{StaticResource QuestionBrush}" />
+                                                    </DockPanel>
+                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" FontSize="14" LineHeight="21" Margin="0,8,0,0"
+                                                               Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}" />
+                                                    <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="{StaticResource DangerBrush}" Margin="0,8,0,0"
+                                                               Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibility}}" />
+                                                    <TextBlock Text="{Binding SpeedNotice}" TextWrapping="Wrap" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" Margin="0,8,0,0"
+                                                               Visibility="{Binding HasSpeedNotice, Converter={StaticResource BooleanToVisibility}}" />
+                                                    <TextBlock Margin="0,4,0,0" Visibility="{Binding IsUsageLimit, Converter={StaticResource BooleanToVisibility}}">
+                                                        <Hyperlink Command="{Binding DataContext.OpenUsageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}">Manage usage</Hyperlink>
+                                                    </TextBlock>
+                                                    <DockPanel Margin="0,10,0,0">
+                                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                            <Button Style="{StaticResource SmallButtonStyle}" Content="Stop"
+                                                                    Visibility="{Binding IsInProgress, Converter={StaticResource BooleanToVisibility}}"
+                                                                    Command="{Binding DataContext.StopAnswerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                            <Button Style="{StaticResource SmallButtonStyle}" Content="Copy" Margin="6,0,0,0"
+                                                                    Visibility="{Binding HasText, Converter={StaticResource BooleanToVisibility}}"
+                                                                    Command="{Binding DataContext.CopyAnswerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding StatusLabel}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusLabel}" />
+                                                    </DockPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+            </Grid>
+
+            <!-- Status bar -->
+            <Grid Grid.Row="4" Margin="16,8,16,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusText}" />
+                <ProgressBar Grid.Column="1" Width="160" Height="4" Margin="12,0" Minimum="0" Maximum="1" VerticalAlignment="Center"
+                             Value="{Binding ModelLoadProgress, Mode=OneWay}" IsIndeterminate="{Binding IsModelLoadIndeterminate}"
+                             Visibility="{Binding ShowModelLoadProgress, Converter={StaticResource BooleanToVisibility}}" />
+                <CheckBox Grid.Column="2" Content="Auto-answer questions" IsChecked="{Binding AutoAnswer}" Margin="12,0" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Opacity" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <Slider Width="110" Minimum="0.35" Maximum="1" Value="{Binding OverlayOpacity}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
